@@ -2,6 +2,10 @@
 import 'dotenv/config'
 // Importamos el cliente de Jupiter para hacer llamadas a la Jupiter API
 import { createJupiterApiClient } from '@jup-ag/api';
+// Importamos los métodos relevantes del SDK de Solana para JS
+import { Connection, Keypair, VersionedTransaction, sendAndConfirmTransaction } from "@solana/web3.js";
+// Importamos la librería bs58 para descodificar la clave privada
+import bs58 from "bs58";
 
 // Creamos constantes básicas a partir del archivo .env
 const sol_private_key = process.env.SOLANA_PRIVATE_KEY;
@@ -24,7 +28,7 @@ const quote = await jupiter.quoteGet(quote_params)
 
 // Si no hay quote correcto, lanzamos error y terminamos el programa
 if (!quote) {
-    throw new Error("Failed to get quote!")  
+    throw new Error("Failed to get quote!")
 }
 // Sacamos los datos del quote por consola
 console.log("Quote recieved:", quote)
@@ -33,28 +37,62 @@ console.log("Quote recieved:", quote)
 
 const swap_params = {
     swapRequest: {
-      quoteResponse: quote,
-      userPublicKey: sol_public_key,
-      dynamicComputeUnitLimit: true,
-      dynamicSlippage: true,
-      prioritizationFeeLamports: {
-        priorityLevelWithMaxLamports: {
-          maxLamports: 350000,
-          priorityLevel: "veryHigh",
+        quoteResponse: quote,
+        userPublicKey: sol_public_key,
+        dynamicComputeUnitLimit: true,
+        dynamicSlippage: true,
+        prioritizationFeeLamports: {
+            priorityLevelWithMaxLamports: {
+                maxLamports: 350000,
+                priorityLevel: "veryHigh",
+            },
         },
-      },
     },
-  }
+}
 
 // Hacemos otro fetch a la API para conseguir los datos de la transaccion
 const swap_data = await jupiter.swapPost(swap_params)
 
 // Si no hay swap data correcto, lanzamos error y terminamos el programa
 if (!swap_data) {
-    throw new Error("Failed to get swap params!")  
+    throw new Error("Failed to get swap params!")
 }
 // Sacamos los datos del quote por consola
 console.log("Swap data recieved:", swap_data)
+
+// Creamos el objeto de conexión usando el RPC
+const connection = new Connection(rpc);
+
+// Creamos el objeto wallet usando nuestra clave privada
+const wallet = Keypair.fromSecretKey(bs58.decode(sol_private_key));
+
+// Serializamos los datos del swap para convertirlos en una transacción lanzable
+const swapTransactionBuffer = Uint8Array.from(Buffer.from(swap_data.swapTransaction, "base64"));
+
+// Creamos una VersionedTransaction con el Buffer
+const transaction = VersionedTransaction.deserialize(swapTransactionBuffer);
+
+// Firmamos la transaccion
+transaction.sign([wallet]);
+
+// Finalmente, lanzamos la transacción 
+const signature = await connection.sendTransaction(transaction);
+
+// Esperamos a que se confirme la transacción
+const confirmation = await connection.confirmTransaction(signature);
+
+// Comprobamos que la transacción se haya confirmado
+if (confirmation.value.err) {
+    throw new Error(`Transaction failed: ${confirmation.value.err}`);
+}
+
+console.log("Transaction confirmed!");
+
+// URL a la información de la transacción
+console.log(`https://solscan.io/tx/${signature}`);
+
+
+
 
 
 
