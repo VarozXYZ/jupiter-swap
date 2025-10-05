@@ -19,7 +19,7 @@ const jupiter = createJupiterApiClient();
 const quote_params = {
     inputMint: "So11111111111111111111111111111111111111112", // SOL
     outputMint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", // USDC
-    amount: 10000000, // 0.1 SOL
+    amount: 1000000, // 0.001 SOL
     slippageBps: 100, // 1%
 };
 
@@ -34,7 +34,6 @@ if (!quote) {
 console.log("Quote recieved:", quote)
 
 // Definimos los datos del Swap para hacer la llamada usando el quote recibido
-
 const swap_params = {
     swapRequest: {
         quoteResponse: quote,
